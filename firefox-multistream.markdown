@@ -1,125 +1,298 @@
-# Firefox multistream and renegotiation in Jitsi
+# Firefox multistream and renegotiation for Jitsi Videobridge
 
 ## Introduction
 
-Jitsi Meet is an OpenSource (MIT) WebRTC JavaScript application that uses Jitsi
-Videobridge to provide high quality, scalable video conferences. Jitsi
-Videobridge is the server that receives video from every participant and then
-relays it to everyone else. The IETF term for Jitsi Videobridge is a Selective
-Forwarding Unit (SFU).  More commonly, however, such servers are known as
-_video routers_ or MCUs. It is pretty much the same piece of tech as the one
-Google use for Hangouts. In a Jitsi Videobridge based conference, all the
-signaling goes through the _Focus_. It is responsible for managing media
+Many of you WebRTC developers out there, have probably already crossed the name
+Jitsi Videobridge. Multi-party video conferencing is arguably one of the most
+popular use cases for WebRTC and once you start looking for servers that allow
+you to implement it, Jitsi's name is among the first you stumble upon.
+
+For a while now, a number of JavaScript applications have been using WebRTC and
+Jitsi Videobridge to deliver a rich conferencing experience to their users. The
+bridge offers a very light-weight way (think routing vs. mixing) of conducting
+high quality video conferences, so it has received it's fair share of
+popularity.
+
+The problem was that, until recently, applications using Jitsi Videobridge only
+worked on a limited set of browsers: Chromium, Chrome and Opera.
+
+This limitation is now gone!
+
+After a few months of hard work from the Mozilla and Jitsi developers, both
+Firefox and Jitsi have added the missing pieces and can now work with each
+other.
+
+While this wasn't the most difficult project on Earth, it wasn't quite a walk
+in the park either, so in this post we'll try to tell you more about the dirty
+details of this adventure!
+
+### Some basics
+
+Jitsi Videobridge is an OpenSource (LGPL) light-weight video conferencing
+server. WebRTC JavaScript applications such as Jitsi Meet use Jitsi Videobridge
+to provide high quality, scalable video conferences. Jitsi Videobridge is
+receives video from every participant and then relays some or all of it to
+everyone else. The IETF term for Jitsi Videobridge is a Selective Forwarding
+Unit (SFU).  Sometimes such servers are also referred to as video routers or
+MCUs. It is pretty much the same piece of tech as the one Google use for
+Hangouts.
+
+From a WebRTC perspective, every browser establishes exactly one PeerConnection
+with the videobridge. It sends and receives all audio and video data to and
+from the bridge over that one PeerConnection.
+
+In a Jitsi Videobridge based conference, all signaling goes through a separate
+server-side application called the Focus. It is responsible for managing media
 sessions between each of the participants and the videobridge. Communication
 between the Focus and a given participant is done through Jingle and between
 the Focus and the Jitsi Videobidge through COLIBRI.
 
-### How Jitsi Meet Works
+
+### Unified Plan, Plan B and the answer to life, the universe and eveything!
+
+If somebody wants to talk about interoperability between Firefox and Chome when
+doing multi-party video conferences, it is impossible to not talk a little bit
+(or a lot!) about [Unified
+Plan](https://tools.ietf.org/html/draft-roach-mmusic-unified-plan-00) and [Plan
+B](https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). Unified Plan and
+Plan B were two competing IETF drafts for the negotiation and exchange of
+multiple media sources (AKA MediaStreamTracks, or MSTs) between two WebRTC
+endpoints. Unified Plan is being incorporated in the [JSEP
+draft](https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-09) and is on its way
+to becoming an IETF standard while Plan B has expired in 2013 and nobody should
+care about it anymore, right? Wrong!
+
+Plan B lives on in the Chrome and its derivatives, like Chromium and Opera.
+There's actually an issue in the Chromium bug tracker to add support for
+[Unified Plan in
+Chromium](https://code.google.com/p/chromium/issues/detail?id=465349), but
+that'll take some time. Firefox, on the other hand, has, [as of
+recently](https://hacks.mozilla.org/2015/03/webrtc-in-firefox-38-multistream-and-renegotiation/),
+implemented Unified Plan.
+
+Developers that want to support both Firefox and Chrome have to deal with this
+situation and implement some kind of interoperability layer between Chrome and
+it derivatives and Firefox. Jitsi Meet is no exception of course; in the
+beginning it was a no-brainer to assume Plan B because that's what Chrome
+implements and Firefox didn't have multistream support. As a result most of our
+abstractions were built arround this assumption.
+
+The most substantial difference between Unified Plan and Plan B is how they
+represent media stream tracks. Unified Plan extends the standard way of
+encoding this information in SDP which is to have each RTP flow (i.e., SSRC)
+appear on its own m-line. So, each media stream track is represented by its own
+unique m-line.  This is a strict one-to-one mapping; a single media stream
+track cannot be spread across several m-lines, nor may a single m-line
+represent multiple media stream tracks.
+
+Plan B takes a different approach, and creates a hierarchy within SDP; a m=
+line defines an "envelope", specifying codec and transport parameters, and
+a=ssrc lines are used to describe individual media sources within that
+envelope. So, typically, a Plan B SDP has three channels, one for audio, one
+for video and one for the data.
 
 ## Implementation
 
-### Battling with signaling
+In our case, it was obvious from the beginning that all the magic should happen
+at the client. The Focus communicates with the clients using Jingle which we
+transform into SDP to feed to the browser. There's no SDP going around on the
+wire. Furthermore, there's no signalling communication between the endpoints
+and the Jitsi Videobridge, it's the Focus that mediates this procedure using
+COLIBRI. So the question was _what's the easiest way to go from Jingle to
+Unified Plan for Firefox, given that we have code that assumes Plan B in all
+imaginable places_.
 
-#### Plan A vs Plan B
-     FF has started implementing support for [Plan A/Plan
-     Unified](plan-unified) for their multi stream support while in Jitsi Meet
-     we’ve implemented [Plan B](plan-b). Plan Unified has prevailed and it is
-     incorporated in the [JSEP draft](jsep-draft).
+In our first few attempts we tried to provide general abstractions wherever
+there was evil Plan B specific code. This could have worked, but at the same
+period of time Jitsi Meet was undergoing some massive refactoring and our
+Unified Plan patches were constantly broken. On top of that, with the
+multisteam support in Firefox being in its very early stages, Firefox was
+breaking more often than it worked. Put those two ingredients together and
+you're left with pretty much _0_ progress. One could even argue that the
+progress was actually negative because of the wasted time.
 
-#### Going berserk is not smart
-     We're implementing the necessary
-     translation logic in our focus so that it serves Plan A/Plan Unified SDP
-     to FF (and Plan B to Chrome).
+Change of course, we decided to give a much more general solution to the
+problem and deal with it at a lower level. The idea was to build a
+PeerConnection adapter that would feed the right SDP to the browser, i.e.
+Unified Plan to Firefox and Plan B to Chrome and that would give a Plan B SDP
+to the application. Enter [sdp-interop](https://github.com/jitsi/sdp-interop).
 
-#### sdp-interop in theory
+### An SDP interoperability layer
 
-#### sdp-interop in practice
-     getting it right was not instantaneous. Lots of debugging native code and
-     help from Mozilla.
+sdp-interop is a reusable npm module that offers the two simple methods:
 
-     Mozilla has helped in a number of occasions..
-     * FF doesn't like it when we add/remove m-lines from its local SDP but
-       further investigation is necessary.
+* `toPlanA(sdp)` that takes an SDP string and transforms it into a Unified Plan
+  SDP.
+* `toPlanB(sdp)` that, not surprisingly, takes an SDP string and transforms it
+  to Plan B SDP.
 
-     unfortunately, a Plan B offer/answer doesn't have enough information to
-     rebuild an equivalent Plan A offer/answer.
+The PeerConnection adapter wraps the `setLocalDescription()`,
+`setRemoteDescription()` methods and the success callbacks of the
+`createAnswer()` and `createOffer()` methods. If the browser is Chrome, the
+adapter does nothing. If, on the other hand, the browser is Firefox the
+PeerConnection adapter...
 
-     For example, if we want to convert a local answer in Plan A style to Plan
-     B prior to handing it over to the application (we are called for example
-     after a successful createAnswer), then we want to remember the m-line at
-     which we've seen the local SSRCs. That's because when the application
-     wants to call the SLD method, forcing us to do the inverse transformation
-     (from Plan B to Plan A), we need to know to which m-line to assign the
-     local SSRCs. We also need to know all the other m-lines that the original
-     answer had and include them in the transformed answer as well.
+* calls the `toPlanA()` method of the sdp-interop module prior to calling the
+  `setLocalDescription()` or the `setRemoteDescription()` methods, thus
+  converting the Plan B SDP from the application to a Unified Plan SDP that
+  Firefox can understand.
+* calls the `toPlanB()` method prior to calling the `createAnswer()` or the
+  `createOffer()` success callback, thus converting the Unified Plan SDP from
+  Firefox to a Plan B SDP that the application can understand.
 
-     We resolved the above issue in an elegant way by caching/storing in Plan A
-     style both the offer and the answer right before we transform an Plan A
-     style offer/answer to Plan B and right after we transform a Plan B style
-     offer/answer to Plan A. When we go from Plan B to Plan A we use the cached
-     Plan A offer/answer and add the missing information from there.
+Here's a sample PeerConnection adapter:
 
-### beyond signaling
-    * dtls negotiation failures
-      https://bugzilla.mozilla.org/show_bug.cgi?id=1132813
-      https://github.com/bcgit/bc-java/pull/111
-    * missing msids
-    * goog-remb (and ulpfec/red)
+    function PeerConnectionAdapter(ice_config, constraints) {
+        var RTCPeerConnection = navigator.mozGetUserMedia
+          ? mozRTCPeerConnection : webkitRTCPeerConnection;
+        this.peerconnection = new RTCPeerConnection(ice_config, constraints);
+        this.interop = new require('sdp-interop').Interop();
+    }
 
-     We've investigated what breaks the remote video playback in FF the
-     issue/debugged FF and, as it turns out, we hit
-     ​https://bugzilla.mozilla.org/show_bug.cgi?id=875922.
+    PeerConnectionAdapter.prototype.setLocalDescription
+      = function (description, successCallback, failureCallback) {
+        // if we're running on FF, transform to Plan A first.
+        if (navigator.mozGetUserMedia)
+            description = this.interop.toPlanA(description);
 
-     With ulpfec/red enabled (jicofo/jvb enables it) Chrome will be sending
-     packets with a different payload type and content (typically 116 red
-     instead of 100 VP8) and FF is discarding those packets because it doesn't
-     understand that content. This makes FF not to send PLIs because the jitter
-     buffer remains empty all the time (FF is discarding most packets) and so
-     request_key_frame = have_non_empty_frame = false all the time (in
-     jitter_buffer.cc:1013).
+        var self = this;
+        this.peerconnection.setLocalDescription(description,
+            function () { successCallback(); },
+            function (err) { failureCallback(err); }
+        );
+    };
 
-     We have asked the FF team to enable ulpfec/red because
+    PeerConnectionAdapter.prototype.setRemoteDescription
+      = function (description, successCallback, failureCallback) {
+        // if we're running on FF, transform to Plan A first.
+        if (navigator.mozGetUserMedia)
+            description = this.interop.toPlanA(description);
 
-     * It fixes the video playback in Jitsi Meet
-     * It improves the quality on unreliable connections
-     * It simplifies a lot the use of ulpfec/red in scenarios with a server
-       routing the traffic to multiple destinations (otherwise we have to
-       translate the content in the server)
-     * It should be supported in WebRTC core and probably it is not difficult
-       to enable it
+        var self = this;
+        this.peerconnection.setRemoteDescription(description,
+            function () { successCallback(); },
+            function (err) { failureCallback(err); }
+        );
+    };
 
-     Despite the above reasons, we need to think about alternative solutions,
-     in case Mozilla doesn't want to enable ulpfec/red for whatever reason. So
-     to support FF we 1. either have to implement some magic in the JVB to hide
-     ulpfec/red when it talks to FF or 2. we completely disable both mechanisms
-     (we have tested the latter and it works). We're thinking what's the best
-     approach.
+    PeerConnectionAdapter.prototype.createAnswer
+      = function (successCallback, failureCallback, constraints) {
+        var self = this;
+        this.peerconnection.createAnswer(
+            function (answer) {
+                if (navigator.mozGetUserMedia)
+                    answer = self.interop.toPlanB(answer);
+                successCallback(answer);
+            },
+            function(err) {
+                failureCallback(err);
+            },
+            constraints
+        );
+    };
 
-### bugs in our implementation
+    PeerConnectionAdapter.prototype.createOffer
+      = function (successCallback, failureCallback, constraints) {
+        var self = this;
+        this.peerconnection.createOffer(
+            function (offer) {
+                if (navigator.mozGetUserMedia)
+                    offer = self.interop.toPlanB(offer);
+                successCallback(offer);
+            },
+            function(err) {
+                failureCallback(err);
+            },
+            constraints
+        );
+    };
 
- We digged further into the supposedly synchronization issue we discovered
- earlier and it turns out it's not a synchronization problem but a non-zero
- offset bug somewhere in libjitsi, probably inside the SRTP transformers. The
- problem is described ​here. We have provided an efficient workaround and
- it should not affect the work on FF support any further.
 
- This finding does not change the state of the current ticket, we're still
- blocked by ​#1155246.
+### Beyond the basics
+
+Like everything in life, sdp-interop is not "perfect", it makes some
+assumptions and it has some limitations. First and foremost, unfortunately, a
+Plan B offer/answer does not have enough information to rebuild an equivalent
+Unified Plan offer/answer. So, while it is easy to go from Plan B to Unified
+Plan, the opposite is not possible without keeping some state.
+
+Suppose, for example, that a Firefox client gets an offer from the Focus to
+join a large call. In the _native_ create answer success callback you get a
+Unified Plan answer that contains multiple m-lines. You convert it in a Plan B
+answer using the sdp-interop module and hand it over to the app to do its
+thing. At some point later-on, the app calls the adapter's
+`setLocalDescription()` method. The adapter will have to convert the Plan B
+answer back to a Unified Plan one to pass it to Firefox.
+
+That's the tricky part because you can't naively put any SSRC in any m-line,
+each SSRC has to be put back into the same m-line that it was in the original
+answer from the native create answer success callback. The order of the m-lines
+is important too, so each m-line has to be in the same position it was in the
+original answer from the native create answer success callback (which matches
+the position of the m-line in the Unified Plan offer). It is also forbidden to
+remove an m-line, instead they must be marked as inactive, if they're no longer
+used.  Similar considerations have to be taken into account when converting a
+Plan B offer to a Unified Plan one when doing renegotiation, for example.
+
+We solved this issue by caching both the most recent Unified Plan offer and the
+most recent Unified Plan answer. When we go from Plan B to Unified Plan we use
+the cached Unified Plan offer/answer and add the missing information from
+there. You can see
+[here](https://github.com/jitsi/sdp-interop/blob/d4569a12875a7180004726633793430eccd7f47b/lib/interop.js#L175)
+how we do this exactly.
+
+Another soft limitation (in the sense that it can be removed given enough
+effort) is that we require bundle and rtcp-mux for both Chrome and Firefox
+endpoints, so all the media whatever the channel is, it goes through a single
+port. To completely remove this limitation it would require changes in our
+Focus because it currently allocates channels in the Jitsi Videobridge the Plan
+B way, i.e. one channel for audio, one for video and one for data while Firefox
+would expect different channels for each stream it receives. We could however
+partially remove this limitation by requiring bundle and rtcp-mux only from
+Firefox and bundling video streams separately from audio streams.
+
+One last soft limitation is that we have currently tested the interoperability
+layer only when Firefox answers a call and not when it offers one because in
+our architecture endpoints always get invited to join a call and never offer
+one.
+
+### Far, far beyond the basics
+
+Even with the SDP interoperability layer in place there's been a number of
+difficulties which we had to overcome to bring FF support in Jitsi Videobridge
+and Mozilla has been a great help to solve all of them.
+
+* We've had [DTLS negotiation
+  failures](https://github.com/bcgit/bc-java/pull/111) soon after Mozilla
+  [enabled DTLS 1.2 in
+  Firefox](https://bugzilla.mozilla.org/show_bug.cgi?id=1132813).
+* Firefox was [missing msids](https://bugzilla.mozilla.org/show_bug.cgi?id=1095218)
+  but Mozilla kindly took care of that.
+* We've had a very weird issue where the remote video playback froze or never
+  started in Firefox and that was triggerd when goog-remb was signaled. As it
+  turned out, this was because Firefox [doesn't currently support
+  ulpfec/red](https://bugzilla.mozilla.org/show_bug.cgi?id=875922) and the
+  packets Chrome was sending were being discarded by Firefox because they were
+  encapsulated in RED and they had the wrong payload type. The Jitsi
+  Videobridge now decapsulates VP8 when it streams to Firefox.
+* we discovered a non-zero offset bug somewhere in libjitsi, probably inside
+  the SRTP transformers, that was causing SRTP auth failures at the receiving
+  side and for which we have provided an efficient workaround.
 
 ## Conclusion
 
 ### things left to do
 
 #### simulcast
-     * FF doesn't support MediaStream constructors yet (see ​here and
-       ​here) but our simulcast reception implementation relies heavily on
-       them. We are working on an alternative approach that doesn't require
-       MediaStream constructors.
-     * Unfortunately, FF doesn't support the RTCPeerConnectio.getStreamById()
-       method but we rely on this method. We provided a JS implementation of
-       the method.
-  - some unresolved issues with FF
+
+* FF doesn't support MediaStream constructors yet (see here and here) but our
+  simulcast reception implementation relies heavily on them. We are working on
+  an alternative approach that doesn't require MediaStream constructors.
+* Unfortunately, FF doesn't support the RTCPeerConnectio.getStreamById() method
+  but we rely on this method. We provided a JS implementation of the method.
+- some unresolved issues with FF
 
 ### Desktop sharing
 ### ORTC
+
 
