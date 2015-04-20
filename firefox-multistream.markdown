@@ -281,18 +281,17 @@ and Mozilla has been a great help to solve all of them.
 
 ## Conclusion
 
-### things left to do
+In this post we've discussed how we implemented Firefox support in our Jitsi
+Videobridge based solution. Currently we're still affected by
+[#1155246](https://bugzilla.mozilla.org/show_bug.cgi?id=1155246). The remote
+video freezes after a while in Firefox because it (Firefox) doesn't push down
+the network the PLIs that the receive only video channels are generating.
 
-#### simulcast
+We also don't have simulcast support in FF because it doesn't support
+MediaStream constructors yet but our simulcast reception implementation relies
+heavily on them. We are working on an alternative approach that doesn't require
+MediaStream constructors.
 
-* FF doesn't support MediaStream constructors yet (see here and here) but our
-  simulcast reception implementation relies heavily on them. We are working on
-  an alternative approach that doesn't require MediaStream constructors.
-* Unfortunately, FF doesn't support the RTCPeerConnectio.getStreamById() method
-  but we rely on this method. We provided a JS implementation of the method.
-- some unresolved issues with FF
-
-### Desktop sharing
-### ORTC
+One last major thing that we're missing is desktop sharing.
 
 
