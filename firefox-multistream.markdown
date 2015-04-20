@@ -275,7 +275,7 @@ and Mozilla has been a great help to solve all of them.
   packets Chrome was sending were being discarded by Firefox because they were
   encapsulated in RED and they had the wrong payload type. The Jitsi
   Videobridge now decapsulates VP8 when it streams to Firefox.
-* we discovered a non-zero offset bug somewhere in libjitsi, probably inside
+* We discovered a non-zero offset bug somewhere in libjitsi, probably inside
   the SRTP transformers, that was causing SRTP auth failures at the receiving
   side and for which we have provided an efficient workaround.
 
