@@ -243,10 +243,10 @@ how we do this exactly.
 
 Another soft limitation (in the sense that it can be removed given enough
 effort) is that we require bundle and rtcp-mux for both Chrome and Firefox
-endpoints, so all the media whatever the channel is, it goes through a single
-port. To completely remove this limitation it would require changes in our
-Focus because it currently allocates channels in the Jitsi Videobridge the Plan
-B way, i.e. one channel for audio, one for video and one for data while Firefox
+endpoints, so all the media whatever the channel is, go through a single port.
+To completely remove this limitation it would require changes in our Focus
+because it currently allocates channels in the Jitsi Videobridge the Plan B
+way, i.e. one channel for audio, one for video and one for data while Firefox
 would expect different channels for each stream it receives. We could however
 partially remove this limitation by requiring bundle and rtcp-mux only from
 Firefox and bundling video streams separately from audio streams.
