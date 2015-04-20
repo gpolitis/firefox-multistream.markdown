@@ -210,7 +210,7 @@ Here's a sample PeerConnection adapter:
 
 ### Beyond the basics
 
-Like everything in life, sdp-interop is not "perfect", it makes some
+Like everything in life, sdp-interop is not "perfect", it makes certain
 assumptions and it has some limitations. First and foremost, unfortunately, a
 Plan B offer/answer does not have enough information to rebuild an equivalent
 Unified Plan offer/answer. So, while it is easy to go from Plan B to Unified
