@@ -26,16 +26,16 @@ While this wasn't the most difficult project on Earth, it wasn't quite a walk
 in the park either, so in this post we'll try to tell you more about the dirty
 details of this adventure!
 
-### Some basics
+## Some basics
 
 Jitsi Videobridge is an OpenSource (LGPL) light-weight video conferencing
 server. WebRTC JavaScript applications such as Jitsi Meet use Jitsi Videobridge
-to provide high quality, scalable video conferences. Jitsi Videobridge is
-receives video from every participant and then relays some or all of it to
-everyone else. The IETF term for Jitsi Videobridge is a Selective Forwarding
-Unit (SFU).  Sometimes such servers are also referred to as video routers or
-MCUs. It is pretty much the same piece of tech as the one Google use for
-Hangouts.
+to provide high quality, scalable video conferences. Jitsi Videobridge receives
+video from every participant and then relays some or all of it to everyone
+else. The IETF term for Jitsi Videobridge is a Selective Forwarding Unit (SFU).
+Sometimes such servers are also referred to as video routers or MCUs. The same
+technology is used by most modern video conferencing systems like Google
+Hangouts, Skype, Vidyo and many others.
 
 From a WebRTC perspective, every browser establishes exactly one PeerConnection
 with the videobridge. It sends and receives all audio and video data to and
@@ -50,21 +50,20 @@ the Focus and the Jitsi Videobidge through COLIBRI.
 
 ### Unified Plan, Plan B and the answer to life, the universe and eveything!
 
-If somebody wants to talk about interoperability between Firefox and Chome when
-doing multi-party video conferences, it is impossible to not talk a little bit
-(or a lot!) about [Unified
-Plan](https://tools.ietf.org/html/draft-roach-mmusic-unified-plan-00) and [Plan
-B](https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). Unified Plan and
-Plan B were two competing IETF drafts for the negotiation and exchange of
-multiple media sources (AKA MediaStreamTracks, or MSTs) between two WebRTC
-endpoints. Unified Plan is being incorporated in the [JSEP
+When discussing interoperability between Firefox and Chome for multi-party
+video conferences, it is impossible to not talk a little bit (or a lot!) about
+[Unified Plan](https://tools.ietf.org/html/draft-roach-mmusic-unified-plan-00)
+and [Plan B (https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). These
+were two competing IETF drafts for the negotiation and exchange of multiple
+media sources (AKA MediaStreamTracks, or MSTs) between WebRTC endpoints.
+Unified Plan is being incorporated in the [JSEP
 draft](https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-09) and is on its way
 to becoming an IETF standard while Plan B has expired in 2013 and nobody should
-care about it anymore, right? Wrong!
+care about it anymore ... at least in theory
 
-Plan B lives on in the Chrome and its derivatives, like Chromium and Opera.
-There's actually an issue in the Chromium bug tracker to add support for
-[Unified Plan in
+In reality Plan B lives on in Chrome and its derivatives, like Chromium and
+Opera.  There's actually an issue in the Chromium bug tracker to add support
+for [Unified Plan in
 Chromium](https://code.google.com/p/chromium/issues/detail?id=465349), but
 that'll take some time. Firefox, on the other hand, has, [as of
 recently](https://hacks.mozilla.org/2015/03/webrtc-in-firefox-38-multistream-and-renegotiation/),
@@ -72,10 +71,10 @@ implemented Unified Plan.
 
 Developers that want to support both Firefox and Chrome have to deal with this
 situation and implement some kind of interoperability layer between Chrome and
-it derivatives and Firefox. Jitsi Meet is no exception of course; in the
-beginning it was a no-brainer to assume Plan B because that's what Chrome
-implements and Firefox didn't have multistream support. As a result most of our
-abstractions were built arround this assumption.
+and Firefox. Jitsi Meet is no exception of course; in the beginning it was a
+no-brainer to assume Plan B because that's what Chrome implements and Firefox
+didn't have multistream support. As a result most of our abstractions were
+built arround this assumption.
 
 The most substantial difference between Unified Plan and Plan B is how they
 represent media stream tracks. Unified Plan extends the standard way of
@@ -94,7 +93,7 @@ for video and one for the data.
 ## Implementation
 
 In our case, it was obvious from the beginning that all the magic should happen
-at the client. The Focus communicates with the clients using Jingle which we
+in the client. The Focus communicates with the clients using Jingle which we
 transform into SDP to feed to the browser. There's no SDP going around on the
 wire. Furthermore, there's no signalling communication between the endpoints
 and the Jitsi Videobridge, it's the Focus that mediates this procedure using
@@ -103,7 +102,7 @@ Unified Plan for Firefox, given that we have code that assumes Plan B in all
 imaginable places_.
 
 In our first few attempts we tried to provide general abstractions wherever
-there was evil Plan B specific code. This could have worked, but at the same
+there was Plan B specific code. This could have worked, but at the same
 period of time Jitsi Meet was undergoing some massive refactoring and our
 Unified Plan patches were constantly broken. On top of that, with the
 multisteam support in Firefox being in its very early stages, Firefox was
@@ -275,23 +274,25 @@ and Mozilla has been a great help to solve all of them.
   packets Chrome was sending were being discarded by Firefox because they were
   encapsulated in RED and they had the wrong payload type. The Jitsi
   Videobridge now decapsulates VP8 when it streams to Firefox.
-* We discovered a non-zero offset bug somewhere in libjitsi, probably inside
-  the SRTP transformers, that was causing SRTP auth failures at the receiving
-  side and for which we have provided an efficient workaround.
+* We discovered a non-zero offset bug in our stack, probably inside the SRTP
+  transformers, that was causing SRTP auth failures at the receiving side and
+  for which we have provided an efficient workaround.
 
 ## Conclusion
 
-In this post we've discussed how we implemented Firefox support in our Jitsi
-Videobridge based solution. Currently we're still affected by
-[#1155246](https://bugzilla.mozilla.org/show_bug.cgi?id=1155246). The remote
-video freezes after a while in Firefox because it (Firefox) doesn't push down
-the network the PLIs that the receive only video channels are generating.
+It's been quite an interesting journey but we are almost there! One of the
+things that we have left to tackle are the issues arising from  #1155246 . The
+remote video freezes after a while in Firefox because it (Firefox) doesn't push
+down the network the PLIs that the receive only video channels are generating.
 
 We also don't have simulcast support in FF because it doesn't support
 MediaStream constructors yet but our simulcast reception implementation relies
 heavily on them. We are working on an alternative approach that doesn't require
 MediaStream constructors.
 
-One last major thing that we're missing is desktop sharing.
+One last major thing that we're missing is desktop sharing but that is also
+currently baking!
+
+In otherwords, Firefox and Jitsi are about to become best buddies!
 
 
