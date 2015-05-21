@@ -48,18 +48,20 @@ between the Focus and a given participant is done through Jingle and between
 the Focus and the Jitsi Videobidge through COLIBRI.
 
 
-### Unified Plan, Plan B and the answer to life, the universe and eveything!
+### Unified Plan, Plan B and the answer to life, the universe and everything!
 
-When discussing interoperability between Firefox and Chome for multi-party
+When discussing interoperability between Firefox and Chrome for multi-party
 video conferences, it is impossible to not talk a little bit (or a lot!) about
 [Unified Plan](https://tools.ietf.org/html/draft-roach-mmusic-unified-plan-00)
 and [Plan B (https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). These
 were two competing IETF drafts for the negotiation and exchange of multiple
 media sources (AKA MediaStreamTracks, or MSTs) between WebRTC endpoints.
-Unified Plan is being incorporated in the [JSEP
-draft](https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-09) and is on its way
-to becoming an IETF standard while Plan B has expired in 2013 and nobody should
-care about it anymore ... at least in theory
+Unified Plan has been incorporated into the [JSEP
+draft](https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-09) and [Bundle
+negotiation draft]
+(https://tools.ietf.org/html/draft-ietf-mmusic-sdp-bundle-negotiation-19),
+which are on their way to becoming IETF standards, while Plan B has expired in
+2013 and nobody should care about it anymore ... at least in theory
 
 In reality Plan B lives on in Chrome and its derivatives, like Chromium and
 Opera.  There's actually an issue in the Chromium bug tracker to add support
@@ -212,8 +214,9 @@ Here's a sample PeerConnection adapter:
 Like everything in life, sdp-interop is not "perfect", it makes certain
 assumptions and it has some limitations. First and foremost, unfortunately, a
 Plan B offer/answer does not have enough information to rebuild an equivalent
-Unified Plan offer/answer. So, while it is easy to go from Plan B to Unified
-Plan, the opposite is not possible without keeping some state.
+Unified Plan offer/answer. So, while it is easy (with some limitations) to go
+from Unified Plan to Plan B, the opposite is not possible without keeping some
+state.
 
 Suppose, for example, that a Firefox client gets an offer from the Focus to
 join a large call. In the _native_ create answer success callback you get a
@@ -224,7 +227,7 @@ thing. At some point later-on, the app calls the adapter's
 answer back to a Unified Plan one to pass it to Firefox.
 
 That's the tricky part because you can't naively put any SSRC in any m-line,
-each SSRC has to be put back into the same m-line that it was in the original
+each SSRC should be put back into the same m-line that it was in the original
 answer from the native create answer success callback. The order of the m-lines
 is important too, so each m-line has to be in the same position it was in the
 original answer from the native create answer success callback (which matches
@@ -240,15 +243,15 @@ there. You can see
 [here](https://github.com/jitsi/sdp-interop/blob/d4569a12875a7180004726633793430eccd7f47b/lib/interop.js#L175)
 how we do this exactly.
 
-Another soft limitation (in the sense that it can be removed given enough
-effort) is that we require bundle and rtcp-mux for both Chrome and Firefox
-endpoints, so all the media whatever the channel is, go through a single port.
-To completely remove this limitation it would require changes in our Focus
-because it currently allocates channels in the Jitsi Videobridge the Plan B
-way, i.e. one channel for audio, one for video and one for data while Firefox
-would expect different channels for each stream it receives. We could however
-partially remove this limitation by requiring bundle and rtcp-mux only from
-Firefox and bundling video streams separately from audio streams.
+Another limitation is that in some cases, a unified plan SDP cannot be mapped
+to a plan B SDP. If the unified SDP has two audio m-lines (for example) that
+have different media or transport attributes, these cannot be reconciled when
+trying to squish them together in a single plan B m-section. This is why
+sdp-interop can only work if the transport attributes are the same (ie; bundle
+and rtcp-mux are being used), and if all codec attributes are exactly the same
+for each m-line of a given media type. Fortunately, both Chrome and Firefox do
+both of these things by default. (This is probably also part of the reason why
+implementing unified plan won't be trivial for Chrome)
 
 One last soft limitation is that we have currently tested the interoperability
 layer only when Firefox answers a call and not when it offers one because in
@@ -277,6 +280,8 @@ and Mozilla has been a great help to solve all of them.
 * We discovered a non-zero offset bug in our stack, probably inside the SRTP
   transformers, that was causing SRTP auth failures at the receiving side and
   for which we have provided an efficient workaround.
+ * Quite a few deficiencies in Firefox's error reporting and logging have been
+   uncovered while working on this.
 
 ## Conclusion
 
