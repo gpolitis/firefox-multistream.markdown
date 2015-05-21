@@ -41,6 +41,8 @@ From a WebRTC perspective, every browser establishes exactly one PeerConnection
 with the videobridge. It sends and receives all audio and video data to and
 from the bridge over that one PeerConnection.
 
+![Jitsi Videobridge based 3-way call](images/201401-Jitsi-videobridge-diagram-FF.png)
+
 In a Jitsi Videobridge based conference, all signaling goes through a separate
 server-side application called the Focus. It is responsible for managing media
 sessions between each of the participants and the videobridge. Communication
