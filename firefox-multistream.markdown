@@ -118,7 +118,7 @@ Change of course, we decided to give a much more general solution to the
 problem and deal with it at a lower level. The idea was to build a
 PeerConnection adapter that would feed the right SDP to the browser, i.e.
 Unified Plan to Firefox and Plan B to Chrome and that would give a Plan B SDP
-to the application. Enter [sdp-interop](https://github.com/jitsi/sdp-interop).
+to the application. Enter [sdp-interop](https://www.npmjs.com/package/sdp-interop).
 
 ### An SDP interoperability layer
 
