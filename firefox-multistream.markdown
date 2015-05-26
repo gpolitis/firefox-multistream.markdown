@@ -292,7 +292,7 @@ on the Firefox side froze or never started. The decoder was stalling. The weird
 thing about this was that, in the test environment (LAN conditions), the
 problem appeared to be triggered only when goog-remb was signaled in the SDP.
 After some digging, it turned out that the problem had nothing to do with
-goog-remb. The real issue was that the Jitsi Videobridge was relayed RED to
+goog-remb. The real issue was that the Jitsi Videobridge was relaying RED to
 Firefox but the latter [doesn't currently support
 ulpfec/red](https://bugzilla.mozilla.org/show_bug.cgi?id=875922) so nothing
 made it through to the decoder. Signaling goog-remb probably tells Chrome to
