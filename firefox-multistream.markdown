@@ -323,7 +323,7 @@ When using bundle, Chrome will discard RTCP traffic coming from
 it uses SSRCs to decide if an RTCP packet should go the the sending Audio or
 the sending Video channel. If it can't find where to dispatch an RTCP packet,
 it drops it. Firefox is not affected as it handles this differently. The webrtc
-code that does the filtering is in bundlefilter.cc which is not included in
+code that does the filtering is in [bundlefilter.cc](https://chromium.googlesource.com/external/webrtc/trunk/talk/+/6a741d7299ddc9eaa9c989729e02d5fdd145bc6e/session/media/bundlefilter.cc) which is not included in
 mozilla-central. Unfortunately we have the same filtering/demux logic
 implemented in our gateway.
 
