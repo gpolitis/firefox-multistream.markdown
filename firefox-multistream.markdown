@@ -74,7 +74,8 @@ that'll take some time. Firefox, on the other hand, has, [as of
 recently](https://hacks.mozilla.org/2015/03/webrtc-in-firefox-38-multistream-and-renegotiation/),
 implemented Unified Plan.
 
-Developers that want to support both Firefox and Chrome have to deal with this
+Developers that implement many-to-many WebRTC-based videoconferencing solutions
+and that want to support both Firefox and Chrome  have to deal with this
 situation and implement some kind of interoperability layer between Chrome and
 and Firefox. Jitsi Meet is no exception of course; in the beginning it was a
 no-brainer to assume Plan B because that's what Chrome implements and Firefox
