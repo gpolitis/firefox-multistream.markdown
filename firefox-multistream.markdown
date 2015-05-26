@@ -56,7 +56,7 @@ _[COLIBRI](http://xmpp.org/extensions/xep-0340.html)_.
 When discussing interoperability between Firefox and Chrome for multi-party
 video conferences, it is impossible to not talk a little bit (or a lot!) about
 [Unified Plan](https://tools.ietf.org/html/draft-roach-mmusic-unified-plan-00)
-and [Plan B (https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). These
+and [Plan B](https://tools.ietf.org/html/draft-uberti-rtcweb-plan-00). These
 were two competing IETF drafts for the negotiation and exchange of multiple
 media sources (AKA MediaStreamTracks, or MSTs) between WebRTC endpoints.
 Unified Plan has been incorporated into the [JSEP
@@ -64,7 +64,7 @@ draft](https://tools.ietf.org/html/draft-ietf-rtcweb-jsep-09) and [Bundle
 negotiation draft]
 (https://tools.ietf.org/html/draft-ietf-mmusic-sdp-bundle-negotiation-19),
 which are on their way to becoming IETF standards, while Plan B has expired in
-2013 and nobody should care about it anymore ... at least in theory
+2013 and nobody should care about it anymore ... at least in theory.
 
 In reality Plan B lives on in Chrome and its derivatives, like Chromium and
 Opera.  There's actually an issue in the Chromium bug tracker to add support
