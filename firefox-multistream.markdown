@@ -315,7 +315,7 @@ trouble begun.
 
 Those internally generated SSRCs of the recvonly channels are known
 *only* to FF. They're not known neither to the client app (they're not
-included in the SDP), nor to the gateway, nor to the other endpoints,
+included in the SDP), nor to the Jitsi Videobridge, nor to the other endpoints,
 notably Chrome.
 
 When using bundle, Chrome will discard RTCP traffic coming from
