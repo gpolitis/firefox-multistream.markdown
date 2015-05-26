@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Many of you WebRTC developers out there, have probably already crossed the name
+Many of you WebRTC developers out there have probably already crossed the name
 Jitsi Videobridge. Multi-party video conferencing is arguably one of the most
 popular use cases for WebRTC and once you start looking for servers that allow
 you to implement it, Jitsi's name is among the first you stumble upon.
